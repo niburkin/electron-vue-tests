@@ -92,6 +92,8 @@
                 let win = new BrowserWindow({
                   parent: this.$electron.remote.getCurrentWindow(),
                   show: false,
+                  width: 1000,
+                  height: 500,
                   fullscreen: true,
                   frame: false,
                   webPreferences: {
@@ -114,7 +116,65 @@
           // this.runYoutube()
         }
       })
-      axios.get('http://vue-tests.local/api/blocks').then(response => (this.blocks = response.data.data))
+
+      if (this.$root.apiUrl !== '') {
+        axios.get('http://vue-tests.local/api/blocks').then(response => (this.blocks = response.data.data))
+      } else {
+        this.blocks = [
+          {
+            children: [
+              {
+                id: 1,
+                class: 'col-md-4',
+                title: 'title',
+                image: 'https://sun4-12.userapi.com/GFrTojeyuJFRUhWaZbQofydd7mzPykyNUETM4w/-WF7LZoCsOE.jpg',
+                type: 'url',
+                url: 'https://youtube.com'
+              },
+              {
+                id: 2,
+                class: 'col-md-4',
+                title: 'title',
+                image: 'https://sun4-12.userapi.com/GFrTojeyuJFRUhWaZbQofydd7mzPykyNUETM4w/-WF7LZoCsOE.jpg'
+              },
+              {
+                id: 3,
+                class: 'col-md-4',
+                title: 'title',
+                image: 'https://sun4-12.userapi.com/GFrTojeyuJFRUhWaZbQofydd7mzPykyNUETM4w/-WF7LZoCsOE.jpg'
+              }
+            ]
+          },
+          {
+            children: [
+              {
+                id: 4,
+                class: 'col-md-3',
+                title: 'title',
+                image: 'https://sun4-12.userapi.com/GFrTojeyuJFRUhWaZbQofydd7mzPykyNUETM4w/-WF7LZoCsOE.jpg'
+              },
+              {
+                id: 5,
+                class: 'col-md-3',
+                title: 'title',
+                image: 'https://sun4-12.userapi.com/GFrTojeyuJFRUhWaZbQofydd7mzPykyNUETM4w/-WF7LZoCsOE.jpg'
+              },
+              {
+                id: 6,
+                class: 'col-md-3',
+                title: 'title',
+                image: 'https://sun4-12.userapi.com/GFrTojeyuJFRUhWaZbQofydd7mzPykyNUETM4w/-WF7LZoCsOE.jpg'
+              },
+              {
+                id: 7,
+                class: 'col-md-3',
+                title: 'title',
+                image: 'https://sun4-12.userapi.com/GFrTojeyuJFRUhWaZbQofydd7mzPykyNUETM4w/-WF7LZoCsOE.jpg'
+              }
+            ]
+          }
+        ]
+      }
     },
     methods: {
       click (key) {
