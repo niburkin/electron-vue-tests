@@ -21,6 +21,21 @@ body {
     width: 100%;
     overflow-y: auto;
 
+    #wrapper-base {
+      min-height: 100%;
+      height: 100%;
+      #wallpaper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 100% auto, auto;
+      }
+    }
+
     #wrapper {
       min-height: 100%;
       width: 100%;
@@ -41,7 +56,26 @@ body {
           height: 100%;
 
           .time {
+            span {
+              &.visible {
+                color: transparent;
+              }
+              width: 5px;
+            }
             font-size: 54px;
+          }
+        }
+      }
+
+      #games-content {
+        .game-block {
+          &.selected {
+            background: #FFFFFF;
+          }
+          .image {
+            img {
+              width: 100%;
+            }
           }
         }
       }

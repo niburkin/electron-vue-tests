@@ -1,126 +1,55 @@
 <template>
-    <div id="wrapper">
-        <div class="header">
-            <div class="row">
-                <div class="col-md-3"></div>
-                <div class="col-md-3"></div>
-                <div class="col-md-3"></div>
-                <div class="col-md-3" id="clock">
-                    <div class="time">12:12</div>
-                    <div class="year">12 monday 13</div>
+    <div id="wrapper-base">
+        <div id="wallpaper" v-bind:style="{backgroundImage:`url(${wallpaperUrl})`}">
+        </div>
+        <div id="wrapper">
+            <block-header></block-header>
+            <div class="content">
+                <div class="main-row" v-for="block in blocks">
+                    <div class="row">
+                        <block-item v-bind:item="children" v-for="children in block.children"
+                                    v-bind:classes="children.class || ''"></block-item>
+                    </div>
+                </div>
+                <div class="main-row">
+                </div>
+                <div class="main-row block-blur">
+                    <div class="row">
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="content">
-
-            <div class="main-row" v-for="block in blocks">
-                <div class="row">
-                    <block-item v-bind:item="children" v-for="children in block.children"
-                                v-bind:classes="children.class || ''"></block-item>
-                </div>
-            </div>
-            <div class="main-row">
-            </div>
-            <div class="main-row block-blur">
-                <div class="row">
-                </div>
-            </div>
-        </div>
-        <!--      <block-item v-for="block in blocks"></block-item>-->
-        <!--        <button v-on:click="runYoutube">Youtube</button>-->
     </div>
 </template>
 
 <script>
   import BlockItem from './LandingPage/BlockItem'
-  import SystemInformation from './LandingPage/SystemInformation'
-  import {execFile} from 'child_process'
+  import BlockHeader from './Base/BlockHeader'
   import axios from 'axios'
+  import jQuery from 'jquery'
+  import { keyType } from '../store/enums'
 
   export default {
     name: 'landing-page',
-    components: { BlockItem, SystemInformation },
+    components: { BlockItem, BlockHeader },
     data () {
       return {
-        blocks: []
+        wallpaperUrl: '',
+        blocks: [],
+        isMounted: false
       }
     },
-    mounted () {
-      document.addEventListener('key:click', (event) => {
-        const key = event.key
-
-        if (['arrowdown', 'arrowup', 'arrowright', 'arrowleft'].indexOf(key) >= 0) {
-          let index = this.blocks.findIndex((element) => {
-            return element.children.findIndex(x => x.id === this.$root.selected.id) >= 0
-          })
-
-          let block = index >= 0 ? this.blocks[index].children.findIndex(x => x.id === this.$root.selected.id) : 0
-
-          let switchLine = key === 'arrowdown' ? 1 : (key === 'arrowup' ? -1 : 0)
-          let switchBlock = key === 'arrowright' ? 1 : (key === 'arrowleft' ? -1 : 0)
-
-          index = index >= 0 ? index + switchLine : 0
-          if (index > this.blocks.length - 1) {
-            index = this.blocks.length - 1
-          } else if (index < 0) {
-            index = 0
-          }
-
-          const len = this.blocks[index].children.length - 1
-
-          block = block > len ? len : (block >= 0 ? block + switchBlock : 0)
-          if (block > len) {
-            block = len
-          } else if (block < 0) {
-            block = 0
-          }
-
-          this.$root.selected = this.blocks[index].children[block]
-        }
-
-        if (key === 'enter' && this.$root.selected) {
-          const block = this.$root.selected
-          switch (block.type) {
-            case 'command':
-              if (block.command) {
-                this.runCommand(block.command, block.parameters)
-              }
-              break
-            case 'url':
-              if (block.url) {
-                const BrowserWindow = this.$electron.remote.BrowserWindow
-                let win = new BrowserWindow({
-                  parent: this.$electron.remote.getCurrentWindow(),
-                  show: false,
-                  width: 1000,
-                  height: 500,
-                  fullscreen: true,
-                  frame: false,
-                  webPreferences: {
-                    preload: require('path').join(__dirname, '../../main/preload.js')
-                  }
-                })
-                win.loadURL(block.url, {
-                  userAgent: 'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/5.2.1 Chr0me/38.0.2125.122 Safari/537.36 LG Browser/8.00.00(LGE; 60UH6550-UB; 03.00.15; 1; DTV_W16N); webOS.TV-2016; LG NetCast.TV-2013 Compatible (LGE, 60UH6550-UB, wireless)'
-                })
-                win.once('ready-to-show', () => {
-                  win.show()
-                })
-                win.on('closed', () => {
-                  win = null
-                })
-                // this.$electron.remote.getCurrentWindow().loadURL(block.url)
-              }
-              break
-          }
-          // this.runYoutube()
-        }
-      })
-
-      if (this.$root.apiUrl !== '') {
-        axios.get('http://vue-tests.local/api/blocks').then(response => (this.blocks = response.data.data))
+    destroyed () {
+      document.removeEventListener('selected:item', this.onSelectEvent, false)
+      document.removeEventListener('key:click', this.onKeyClick, false)
+    },
+    created () {
+      if (this.$root.useApi) {
+        axios.get(`${this.$root.apiUrl}/blocks`).then((response) => {
+          this.setData(response.data.data)
+        })
       } else {
-        this.blocks = [
+        this.setData([
           {
             children: [
               {
@@ -173,27 +102,81 @@
               }
             ]
           }
-        ]
+        ])
       }
+
+      document.addEventListener('key:click', this.onKeyClick)
+      document.addEventListener('selected:item', this.onSelectEvent)
     },
     methods: {
+      onSelectEvent (event) {
+        const item = event.object
+        if (this.wallpaperUrl !== item.wallpaper) {
+          const wallpaper = jQuery('#wallpaper')
+          if (this.wallpaperUrl) {
+            wallpaper.fadeOut(100, () => {
+              this.wallpaperUrl = item.wallpaper
+              wallpaper.fadeIn(150)
+            })
+          } else {
+            wallpaper.fadeIn(300, () => {
+              this.wallpaperUrl = item.wallpaper
+            })
+          }
+        }
+      },
+      onKeyClick (event) {
+        const key = event.key
+
+        if (this.$router.currentRoute.name !== 'main') { return }
+
+        if ([keyType.UP, keyType.DOWN, keyType.LEFT, keyType.RIGHT].indexOf(key) >= 0 && this.blocks.length > 0) {
+          let index = this.blocks.findIndex((element) => {
+            return element.children.findIndex(x => this.$root.selected && x.id === this.$root.selected.id) >= 0
+          })
+
+          let block = index >= 0 ? this.blocks[index].children.findIndex(x => this.$root.selected && x.id === this.$root.selected.id) : 0
+
+          let switchLine = key === keyType.DOWN ? 1 : (key === keyType.UP ? -1 : 0)
+          let switchBlock = key === keyType.RIGHT ? 1 : (key === keyType.LEFT ? -1 : 0)
+
+          index = index >= 0 ? index + switchLine : 0
+          if (index >= this.blocks.length) {
+            index = this.blocks.length - 1
+          }
+          if (index < 0) {
+            index = 0
+          }
+
+          const len = this.blocks[index].children.length - 1
+
+          block = block > len ? len : (block >= 0 ? block + switchBlock : 0)
+          if (block > len) {
+            block = len
+          } else if (block < 0) {
+            block = 0
+          }
+
+          this.$root.setSelected(this.blocks[index].children[block])
+        }
+
+        if (key === keyType.SELECT && this.$root.selected) {
+          const block = this.$root.selected
+          this.$root.useObject(block)
+        }
+      },
       click (key) {
         console.log(key)
       },
+      setData (data) {
+        this.blocks = data
+
+        if (this.blocks.length > 0) {
+          this.$root.setSelected(this.blocks[0].children[0])
+        }
+      },
       open (link) {
         this.$electron.shell.openExternal(link)
-      },
-      runCommand (command, parameters) {
-        // const command = 'C:\\Program Files (x86)\\BambukTV\\IpTvPlayer.exe'
-        // const parameters = []
-        execFile(command, parameters, function (err, data) {
-          console.log(err)
-          console.log(data.toString())
-        }).on('close', function () {
-          console.log('Closed')
-        }).on('error', function () {
-          console.log('Error')
-        })
       }
     }
   }
