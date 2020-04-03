@@ -4,17 +4,21 @@
             <block-header></block-header>
             <div class="content">
                 <div id="games-content">
-                    <div class="main-row" v-for="row in rows">
-                        <div class="row">
-                            <block-item :item="file" v-on:select="onSelectItem" :selected="selectedIndex === file.index" v-for="file in row"></block-item>
-                        </div>
-                    </div>
+                    <hooper ref="slider"
+                            id="game-slider"
+                            style="height: auto"
+                            :settings="settings">
+                        <slide v-for="file in files">
+                            <block-item :item="file" v-on:select="onSelectItem" :selected="selectedIndex === file.index"></block-item>
+                        </slide>
+                    </hooper>
                 </div>
             </div>
         </div>
     </div>
 </template>
 <script>
+  import { Hooper, Slide } from 'hooper'
   import BlockHeader from './Base/BlockHeader'
   import BlockItem from './GamesPage/BlockItem'
   import fs from 'fs'
@@ -22,13 +26,21 @@
 
   export default {
     name: 'games-page',
-    components: {BlockHeader, BlockItem},
+    components: {BlockHeader, BlockItem, Hooper, Slide},
     data () {
       return {
-        rows: [],
-        files: [],
-        page: 1,
-        selectedIndex: 0
+        selectedIndex: 0,
+        settings: {
+          itemsToShow: 3,
+          itemsToSlide: 1,
+          centerMode: true,
+          keysControl: false,
+          touchDrag: false,
+          mouseDrag: false,
+          shortDrag: false,
+          wheelControl: false
+        },
+        files: []
       }
     },
     destroyed () {
@@ -38,59 +50,49 @@
       let array = []
       this.$root.games.gamecube.dirs.forEach((dir) => {
         array = array.concat(fs.readdirSync(dir).map((item) => {
-          return `${item}`
+          return {
+            name: item,
+            fullpath: `${dir}\\${item}`
+          }
         }))
       })
       this.files = array.map((item, index) => {
         return {
-          file: item,
+          file: item.name,
+          fullpath: item.fullpath,
           index: index
         }
       })
 
       document.addEventListener('key:click', this.onKeyClick)
-
-      this.updateRows()
     },
     methods: {
       onSelectItem (item) {
-        this.selectedIndex = item.index
+        this.selectedIndex = item
       },
       onKeyClick (event) {
         const key = event.key
+        const slider = this.$refs.slider
+        const { currentSlide, slidesCount, isSliding } = slider.$data
 
-        if ([keyType.UP, keyType.DOWN, keyType.LEFT, keyType.RIGHT].indexOf(key) >= 0) {
-          const vector = {
-            top: key === keyType.UP ? 1 : (key === keyType.DOWN ? -1 : 0),
-            right: key === keyType.LEFT ? -1 : (key === keyType.RIGHT ? 1 : 0)
+        if ([keyType.UP, keyType.DOWN, keyType.LEFT, keyType.RIGHT, keyType.SELECT].indexOf(key) >= 0 && !isSliding) {
+          if (key === keyType.LEFT && currentSlide + 1 > 1) {
+            slider.slidePrev()
           }
 
-          const offset = vector.right + (-vector.top * 4)
-
-          this.selectedIndex = this.$root.clamp(this.selectedIndex + offset, 0, this.files.length - 1)
-
-          const start = (this.page - 1) * 8
-          if (this.selectedIndex < start) {
-            this.page -= 1
+          if (key === keyType.RIGHT && currentSlide + 1 < slidesCount) {
+            slider.slideNext()
           }
-          if (this.selectedIndex > start + 7) {
-            this.page += 1
+
+          this.onSelectItem(slider.$data.currentSlide)
+
+          if (key === keyType.SELECT) {
+            this.launch(this.files[currentSlide].fullpath)
           }
-          this.updateRows()
         }
       },
-      updateRows () {
-        let pages = Math.ceil(this.files.length / 8)
-        this.page = Math.min(Math.max(this.page, 1), pages)
-        const start = (this.page - 1) * 8
-
-        this.rows = [
-          this.files.slice(start, start + 4),
-          this.files.slice(start + 4, start + 8)
-        ]
-      },
       launch (file) {
-        return
+        // return
         // eslint-disable-next-line no-unreachable
         let attributes = this.$root.games.gamecube.arguments
         attributes.push(file)

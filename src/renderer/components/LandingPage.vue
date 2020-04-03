@@ -1,22 +1,30 @@
 <template>
     <div id="wrapper-base">
-        <div id="wallpaper" v-bind:style="{backgroundImage:`url(${wallpaperUrl})`}">
+        <div id="wallpaper">
         </div>
         <div id="wrapper">
             <block-header></block-header>
             <div class="content">
-                <div class="main-row" v-for="block in blocks">
-                    <div class="row">
-                        <block-item v-bind:item="children" v-for="children in block.children"
-                                    v-bind:classes="children.class || ''"></block-item>
-                    </div>
-                </div>
-                <div class="main-row">
-                </div>
-                <div class="main-row block-blur">
-                    <div class="row">
-                    </div>
-                </div>
+                <hooper
+                        ref="slider"
+                        id="vertical-slider"
+                        :vertical="true"
+                        :settings="sliderSettings"
+                        style="height: 100%"
+                        :itemsToShow="2.2"
+                >
+                    <slide v-for="block in blocks">
+                        <div class="block-item">
+                            <hooper style="height: 100%" :settings="sliderSettings" :horizontal="true" :itemsToShow="3.2" :itemsToSlide="1">
+                                <slide v-for="item in block.children">
+                                    <div class="block-item">
+                                        <block-item :item="item"></block-item>
+                                    </div>
+                                </slide>
+                            </hooper>
+                        </div>
+                    </slide>
+                </hooper>
             </div>
         </div>
     </div>
@@ -25,15 +33,24 @@
 <script>
   import BlockItem from './LandingPage/BlockItem'
   import BlockHeader from './Base/BlockHeader'
+  import {Hooper, Slide} from 'hooper'
   import axios from 'axios'
   import jQuery from 'jquery'
   import { keyType } from '../store/enums'
 
   export default {
     name: 'landing-page',
-    components: { BlockItem, BlockHeader },
+    components: { Hooper, Slide, BlockItem, BlockHeader },
     data () {
       return {
+        sliderSettings: {
+          centerMode: true,
+          keysControl: false,
+          touchDrag: false,
+          mouseDrag: false,
+          shortDrag: false,
+          wheelControl: false
+        },
         wallpaperUrl: '',
         blocks: [],
         isMounted: false
@@ -130,39 +147,37 @@
 
         if (this.$router.currentRoute.name !== 'main') { return }
 
-        if ([keyType.UP, keyType.DOWN, keyType.LEFT, keyType.RIGHT].indexOf(key) >= 0 && this.blocks.length > 0) {
-          let index = this.blocks.findIndex((element) => {
-            return element.children.findIndex(x => this.$root.selected && x.id === this.$root.selected.id) >= 0
-          })
+        if ([keyType.UP, keyType.DOWN, keyType.LEFT, keyType.RIGHT, keyType.SELECT].indexOf(key) >= 0 && this.blocks.length > 0) {
+          const slider = this.$refs.slider
+          const { currentSlide, slidesCount } = slider.$data
 
-          let block = index >= 0 ? this.blocks[index].children.findIndex(x => this.$root.selected && x.id === this.$root.selected.id) : 0
-
-          let switchLine = key === keyType.DOWN ? 1 : (key === keyType.UP ? -1 : 0)
-          let switchBlock = key === keyType.RIGHT ? 1 : (key === keyType.LEFT ? -1 : 0)
-
-          index = index >= 0 ? index + switchLine : 0
-          if (index >= this.blocks.length) {
-            index = this.blocks.length - 1
-          }
-          if (index < 0) {
-            index = 0
+          console.log(currentSlide)
+          if (key === keyType.UP && currentSlide + 1 > 1) {
+            slider.slidePrev()
           }
 
-          const len = this.blocks[index].children.length - 1
-
-          block = block > len ? len : (block >= 0 ? block + switchBlock : 0)
-          if (block > len) {
-            block = len
-          } else if (block < 0) {
-            block = 0
+          if (key === keyType.DOWN && currentSlide + 1 < slidesCount) {
+            slider.slideNext()
           }
 
-          this.$root.setSelected(this.blocks[index].children[block])
-        }
+          if (slider.$children[currentSlide].$children.length > 0) {
+            const children = slider.$children[currentSlide].$children[0]
 
-        if (key === keyType.SELECT && this.$root.selected) {
-          const block = this.$root.selected
-          this.$root.useObject(block)
+            if (key === keyType.LEFT && children.currentSlide + 1 > 1) {
+              children.slidePrev()
+            }
+            if (key === keyType.RIGHT && children.currentSlide + 1 < children.slidesCount) {
+              children.slideNext()
+            }
+
+            console.log(children.currentSlide)
+
+            this.$root.setSelected(children.$children[children.currentSlide].$children[0].item)
+            if (key === keyType.SELECT) {
+              const block = this.$root.selected
+              this.$root.useObject(block)
+            }
+          }
         }
       },
       click (key) {
